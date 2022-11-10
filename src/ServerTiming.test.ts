@@ -1,6 +1,10 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { ServerTiming, type ServerTimingOptions } from './ServerTiming'
+import {
+  ServerTiming,
+  type ServerTimingOptions,
+  type ServerTimingLabel,
+} from './ServerTiming'
 
 const asyncFn = async (): Promise<string> =>
   new Promise((resolve) => setTimeout(() => resolve('hello world'), 3))
@@ -141,5 +145,36 @@ describe('ServerTiming', () => {
     const headers = new Headers(serverTiming.headers())
 
     assert.equal(headers.get(serverTiming.headerKey), serverTiming.toString())
+  })
+
+  describe("text validation: should only allow characters that Chrome's devtools allow for labels", () => {
+    const serverTiming = new ServerTiming()
+    const tests: [ServerTimingLabel, boolean][] = [
+      ['foo', true],
+      ['db.getUsers', true],
+      ['db:getUsers', false],
+      ['cache/set', false],
+      [encodeURIComponent('cache/set'), true],
+      ['cache\\set', false],
+      ['👁👄👁', false],
+      ['cache set', false],
+      ['hunter1', true],
+      ['~strikethrough~', true],
+      ['http_request', true],
+      [{ label: 'http', desc: 'Slow External API' }, true],
+      [{ label: 'http', desc: '"Slow" External API' }, false],
+    ]
+
+    tests.forEach(([labelObj, shouldPass]) => {
+      if (shouldPass) {
+        it(`should accept ${JSON.stringify(labelObj)}`, () => {
+          assert.doesNotThrow(() => serverTiming.add(labelObj))
+        })
+      } else {
+        it(`should reject ${JSON.stringify(labelObj)}`, () => {
+          assert.throws(() => serverTiming.add(labelObj))
+        })
+      }
+    })
   })
 })

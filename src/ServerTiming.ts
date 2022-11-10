@@ -1,5 +1,3 @@
-import { hrtime } from 'node:process'
-
 export interface ServerTimingOptions {
   precision: number
 }
@@ -7,6 +5,14 @@ export interface ServerTimingOptions {
 const defaultOptions: ServerTimingOptions = {
   precision: +Infinity,
 }
+
+// https://httpwg.org/specs/rfc7230.html#rfc.section.3.2.6
+// labels are a "token"
+const labelRegex = /^[a-zA-Z0-9\!\#\$\%\&\'\*\+\-\.\^\_\`\|\~]+$/
+// descs are a "quoted-string". This is very incomplete and I'm leaving it up to
+// the user's server, browser, and debugging to determine what strings are valid
+// here. Basically, if this matches anything, throw.
+const descRegex = /["]/
 
 /**
  * Framework agnostic timing class that outputs `Server-Timing` headers so that
@@ -24,11 +30,11 @@ const defaultOptions: ServerTimingOptions = {
  *   serverTiming.end('db')
  *
  *   // Timing calls can be chained
- *   serverTiming.start('db:users')
+ *   serverTiming.start('db-users')
  *   const users = await db.getUsers()
- *   serverTiming.end('db:users').start('cache:users')
+ *   serverTiming.end('db-users').start('cache-users')
  *   cache.set('users', users)
- *   serverTiming.end('cache:users')
+ *   serverTiming.end('cache-users')
  *
  *   // All of this is nice, but you really should be using the track method,
  *   // which allows for wrapping of functions that will track latency.
@@ -46,8 +52,8 @@ const defaultOptions: ServerTimingOptions = {
  *
  *   // Entries can be added without measurements
  *   serverTiming
- *     .add('cache:miss')
- *     .track('cache:write', cache.save('orders', orders))
+ *     .add('cache-miss')
+ *     .track('cache-orders', cache.set('orders', orders))
  *
  *   // When you are done tracking operations, attach headers to the response by
  *   // calling serverTiming.header().
@@ -73,11 +79,21 @@ export class ServerTiming {
   }
 
   private transformLabel(obj: ServerTimingLabel): DetailedServerTimingLabel {
-    if (typeof obj === 'string') {
-      return { label: obj }
+    let labelObj = obj
+
+    if (typeof labelObj === 'string') {
+      labelObj = { label: labelObj }
     }
 
-    return obj
+    if (!labelObj.label.match(labelRegex)) {
+      throw new Error(`'${labelObj.label}' is not a valid label`)
+    }
+
+    if (labelObj.desc && labelObj.desc.match(descRegex)) {
+      throw new Error(`'${labelObj.desc}' is not a valid desc`)
+    }
+
+    return labelObj
   }
 
   private formatDuration(start: bigint, end: bigint): number | string {
@@ -101,7 +117,7 @@ export class ServerTiming {
    * ```typescript
    * const serverTiming = new ServerTiming()
    * // Add a note that the request had a cache miss
-   * serverTiming.add('cache:miss')
+   * serverTiming.add('cache-miss')
    * // Add a note with a description and timing
    * serverTiming.add({ label: 'db:user', desc: 'User query', dur: 53 })
    * ```
@@ -131,7 +147,7 @@ export class ServerTiming {
 
     this.timings.push({
       ...timing,
-      start: hrtime.bigint(),
+      start: process.hrtime.bigint(),
     })
 
     return this
@@ -151,7 +167,7 @@ export class ServerTiming {
       throw new Error(`timing '${label}' was never started`)
     }
 
-    this.timings[timingIdx].end = hrtime.bigint()
+    this.timings[timingIdx].end = process.hrtime.bigint()
 
     return this
   }
@@ -216,7 +232,7 @@ export class ServerTiming {
         let end = timing.end
 
         if (!end) {
-          end = hrtime.bigint()
+          end = process.hrtime.bigint()
         }
 
         value += `;dur=${this.formatDuration(timing.start, end)}`
