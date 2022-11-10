@@ -1,10 +1,12 @@
-export type DetailedServerTimingLabel = {
-  label: string
-  desc?: string
-  dur?: number
+import { hrtime } from 'node:process'
+
+export interface ServerTimingOptions {
+  precision: number
 }
 
-export type ServerTimingLabel = string | DetailedServerTimingLabel
+const defaultOptions: ServerTimingOptions = {
+  precision: +Infinity,
+}
 
 /**
  * Framework agnostic timing class that outputs `Server-Timing` headers so that
@@ -37,16 +39,21 @@ export type ServerTimingLabel = string | DetailedServerTimingLabel
  *   const stats = await serverTiming.track(
  *     {
  *       label: 'stats',
- *       desc: 'Aggregated stats about sales',
+ *       desc: 'Sales Stats',
  *     },
  *     () => db.getStats()
  *   )
+ *
+ *   // Entries can be added without measurements
+ *   serverTiming
+ *     .add('cache:miss')
+ *     .track('cache:write', cache.save('orders', orders))
  *
  *   // When you are done tracking operations, attach headers to the response by
  *   // calling serverTiming.header().
  *   return json({ users, orders }, {
  *     headers: {
- *       [serverTiming.headerKey]: serverTiming.header(),
+ *       [serverTiming.headerKey]: serverTiming.toString(),
  *     }
  *   })
  * }
@@ -54,16 +61,15 @@ export type ServerTimingLabel = string | DetailedServerTimingLabel
  */
 export class ServerTiming {
   public headerKey = 'Server-Timing' as const
-  private timings: (
-    | (DetailedServerTimingLabel & {
-        start?: Date
-        end?: Date
-      })
-    | ServerTiming
-  )[]
+  private timings: (DetailedServerTimingLabel & {
+    start?: bigint
+    end?: bigint
+  })[]
+  private options: ServerTimingOptions
 
-  constructor() {
+  constructor(options: Partial<ServerTimingOptions> = {}) {
     this.timings = []
+    this.options = { ...defaultOptions, ...options }
   }
 
   private transformLabel(obj: ServerTimingLabel): DetailedServerTimingLabel {
@@ -74,19 +80,35 @@ export class ServerTiming {
     return obj
   }
 
-  note(labelObj: ServerTimingLabel) {
-    this.timings.push(this.transformLabel(labelObj))
-    return this
-  }
+  private formatDuration(start: bigint, end: bigint): number | string {
+    // convert to milliseconds
+    const dur = Number(end - start) / 1000000
 
-  group() {
-    const group = new ServerTiming()
-    this.timings.push(group)
-    group.group = () => {
-      throw new Error('groups cannot be more than one level deep')
+    if (Number.isFinite(this.options.precision)) {
+      return dur.toFixed(this.options.precision)
     }
 
-    return group
+    return dur
+  }
+
+  /**
+   * Directly add a an item to the timings array. This can be helpful if you
+   * want to track something that doesn't have a measurement associated with it
+   * or if the time mesaurement is tracked outside of `ServerTiming.track`.
+   *
+   * @example
+   *
+   * ```typescript
+   * const serverTiming = new ServerTiming()
+   * // Add a note that the request had a cache miss
+   * serverTiming.add('cache:miss')
+   * // Add a note with a description and timing
+   * serverTiming.add({ label: 'db:user', desc: 'User query', dur: 53 })
+   * ```
+   */
+  add(labelObj: ServerTimingLabel) {
+    this.timings.push(this.transformLabel(labelObj))
+    return this
   }
 
   /**
@@ -109,7 +131,7 @@ export class ServerTiming {
 
     this.timings.push({
       ...timing,
-      start: new Date(),
+      start: hrtime.bigint(),
     })
 
     return this
@@ -123,15 +145,13 @@ export class ServerTiming {
    */
   end(labelObj: ServerTimingLabel) {
     const { label } = this.transformLabel(labelObj)
-    const timingIdx = this.timings.findIndex(
-      (t) => !(t instanceof ServerTiming) && t.label === label
-    )
+    const timingIdx = this.timings.findIndex((t) => t.label === label)
 
     if (timingIdx === -1) {
       throw new Error(`timing '${label}' was never started`)
     }
 
-    this.timings[timingIdx].end = new Date()
+    this.timings[timingIdx].end = hrtime.bigint()
 
     return this
   }
@@ -177,39 +197,63 @@ export class ServerTiming {
    * @example
    *
    * ```typescript
-   * const headers = new Headers()
-   * headers.set(serverTiming.headerKey, serverTiming.headers())
+   * const headers = new Headers(serverTiming.headers())
    * ```
    */
-  headers(): string[] {
-    return this.timings.map((timing) => {
-      if (timing instanceof ServerTiming) {
-        return timing.headers().join(', ')
-      }
+  headers(): Headers {
+    const headers = new Headers()
 
-      const parts = [timing.label]
+    this.timings.forEach((timing) => {
+      let value = timing.label
 
       if (timing.desc) {
-        parts.push(`desc="${timing.desc}"`)
+        value += `;desc="${timing.desc}"`
       }
 
       if (timing.dur) {
-        parts.push(`dur=${timing.dur}`)
+        value += `;dur=${timing.dur}`
       } else if (timing.start) {
         let end = timing.end
 
         if (!end) {
-          end = new Date()
+          end = hrtime.bigint()
         }
 
-        parts.push(`dur=${end.getTime() - timing.start.getTime()}`)
+        value += `;dur=${this.formatDuration(timing.start, end)}`
       }
 
-      return parts.join(';')
+      headers.append(this.headerKey, value)
     })
+
+    return headers
   }
 
-  toString() {
-    return this.headers().join(', ')
+  /**
+   * Output the metrics to a properly formated `Server-Timing` header string.
+   * All metrics will be grouped into a single header seperated by commas.
+   *
+   * @example
+   *
+   * ```typescript
+   * const serverTiming = new ServerTiming()
+   * const headers = new Headers()
+   * headers.append(serverTiming.headerKey, serverTiming.toString())
+   * // or just cast it to a string, same difference
+   * headers.append(serverTiming.headerKey, String(serverTiming))
+   * ```
+   */
+  toString(): string {
+    return this.headers().get(this.headerKey) ?? ''
   }
 }
+
+export type DetailedServerTimingLabel = {
+  label: string
+  desc?: string
+  /**
+   * The number of milliseconds the metric took
+   */
+  dur?: number
+}
+
+export type ServerTimingLabel = string | DetailedServerTimingLabel
