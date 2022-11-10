@@ -8,7 +8,7 @@ import {
 
 const asyncFn = async (): Promise<string> =>
   new Promise((resolve) =>
-    setTimeout(() => resolve('hello world'), Math.random() * 11)
+    setTimeout(() => resolve('hello world'), Math.random() * 5)
   )
 
 const serverTimingFactory = (opts: ServerTimingOptions = { precision: 0 }) =>

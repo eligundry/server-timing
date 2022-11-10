@@ -1,13 +1,22 @@
 {
   "name": "@eligundry/server-timing",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Framework agnostic implementation for tracking app latency with Server-Timing headers",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eligundry/server-timing"
+  },
   "main": "dist/index.js",
+  "types": "./dist/index.d.ts",
   "type": "module",
   "scripts": {
     "test": "node --loader ts-node/esm --test src/*.test.ts",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm test && npm run build"
   },
+  "files": [
+    "./dist/*"
+  ],
   "author": "Eli Gundry",
   "license": "MIT",
   "prettier": {

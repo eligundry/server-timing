@@ -119,9 +119,9 @@ export class ServerTiming {
    * ```typescript
    * const serverTiming = new ServerTiming()
    * // Add a note that the request had a cache miss
-   * serverTiming.add('cache-miss')
+   * serverTiming.add('cache.miss')
    * // Add a note with a description and timing
-   * serverTiming.add({ label: 'db:user', desc: 'User query', dur: 53 })
+   * serverTiming.add({ label: 'db.user', desc: 'User query', dur: 53 })
    * ```
    */
   add(labelObj: ServerTimingLabel) {
