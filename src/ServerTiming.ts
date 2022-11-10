@@ -21,6 +21,8 @@ const descRegex = /["]/
  * @example
  *
  * ```typescript
+ * import ServerTiming from '@eligundry/server-timing'
+ *
  * const handler = async () => {
  *   const serverTiming = new ServerTiming()
  *
@@ -30,15 +32,15 @@ const descRegex = /["]/
  *   serverTiming.end('db')
  *
  *   // Timing calls can be chained
- *   serverTiming.start('db-users')
+ *   serverTiming.start('db.getUsers')
  *   const users = await db.getUsers()
- *   serverTiming.end('db-users').start('cache-users')
- *   cache.set('users', users)
- *   serverTiming.end('cache-users')
+ *   serverTiming.end('db.getUsers').start('cache.users')
+ *   await cache.set('users', users)
+ *   serverTiming.end('cache.users')
  *
  *   // All of this is nice, but you really should be using the track method,
  *   // which allows for wrapping of functions that will track latency.
- *   const orders = await serverTiming.track('db:orders', () => db.getOrders())
+ *   const orders = await serverTiming.track('db.getOrders', () => db.getOrders())
  *
  *   // All tracking calls can accept a human readable description of the
  *   // tracking call.
@@ -52,12 +54,12 @@ const descRegex = /["]/
  *
  *   // Entries can be added without measurements
  *   serverTiming
- *     .add('cache-miss')
- *     .track('cache-orders', cache.set('orders', orders))
+ *     .add('cache.miss')
+ *     .track('cache.stats', () => cache.set('stats', stats))
  *
  *   // When you are done tracking operations, attach headers to the response by
  *   // calling serverTiming.header().
- *   return json({ users, orders }, {
+ *   return json({ users, orders, stats }, {
  *     headers: {
  *       [serverTiming.headerKey]: serverTiming.toString(),
  *     }

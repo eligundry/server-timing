@@ -7,7 +7,9 @@ import {
 } from './ServerTiming'
 
 const asyncFn = async (): Promise<string> =>
-  new Promise((resolve) => setTimeout(() => resolve('hello world'), 3))
+  new Promise((resolve) =>
+    setTimeout(() => resolve('hello world'), Math.random() * 11)
+  )
 
 const serverTimingFactory = (opts: ServerTimingOptions = { precision: 0 }) =>
   new ServerTiming(opts)
@@ -177,4 +179,23 @@ describe('ServerTiming', () => {
       }
     })
   })
+
+  // it('example output', async () => {
+  //   const serverTiming = new ServerTiming({ precision: 3 })
+  //   serverTiming.track('db', asyncFn)
+  //   serverTiming.track('db.getUsers', asyncFn)
+  //   serverTiming.track('cache.users', asyncFn)
+  //   serverTiming.track('db.getOrders', asyncFn)
+  //   serverTiming.track(
+  //     {
+  //       label: 'db.getStats',
+  //       desc: 'Sales Stats',
+  //     },
+  //     asyncFn
+  //   )
+  //   serverTiming.add('cache.miss').track('cache.stats', asyncFn)
+
+  //   console.log(serverTiming.headers())
+  //   assert.equal(false, true)
+  // })
 })
