@@ -149,7 +149,7 @@ describe('ServerTiming', () => {
     assert.equal(headers.get(serverTiming.headerKey), serverTiming.toString())
   })
 
-  describe("text validation: should only allow characters that Chrome's devtools allow for labels", () => {
+  describe("text validation: should only allow characters that Chrome's devtools allow for labels", async () => {
     const serverTiming = new ServerTiming()
     const tests: [ServerTimingLabel, boolean][] = [
       ['foo', true],
@@ -180,22 +180,22 @@ describe('ServerTiming', () => {
     })
   })
 
-  // it('example output', async () => {
-  //   const serverTiming = new ServerTiming({ precision: 3 })
-  //   serverTiming.track('db', asyncFn)
-  //   serverTiming.track('db.getUsers', asyncFn)
-  //   serverTiming.track('cache.users', asyncFn)
-  //   serverTiming.track('db.getOrders', asyncFn)
-  //   serverTiming.track(
-  //     {
-  //       label: 'db.getStats',
-  //       desc: 'Sales Stats',
-  //     },
-  //     asyncFn
-  //   )
-  //   serverTiming.add('cache.miss').track('cache.stats', asyncFn)
+  it('should output raw timing data', async () => {
+    const serverTiming = serverTimingFactory()
+    serverTiming
+      .add('miss')
+      .add({ label: 'db.write', dur: 53 })
+      .add({
+        label: 'cache.desc',
+        desc: 'Saving to redis.1',
+      })
+      .track({ label: 'db.read' }, asyncFn)
+    const rawTimings = serverTiming.getRawTimings()
 
-  //   console.log(serverTiming.headers())
-  //   assert.equal(false, true)
-  // })
+    assert.equal(rawTimings.length, 4)
+    assert.equal(rawTimings[0], 'miss')
+    assert.deepEqual(rawTimings[1], ['db.write', 53])
+    assert.equal(rawTimings[2], 'cache.desc (Saving to redis.1)')
+    assert.equal(rawTimings[3][0], 'db.read')
+  })
 })

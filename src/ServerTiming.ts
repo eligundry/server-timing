@@ -231,12 +231,7 @@ export class ServerTiming {
       if (timing.dur) {
         value += `;dur=${timing.dur}`
       } else if (timing.start) {
-        let end = timing.end
-
-        if (!end) {
-          end = process.hrtime.bigint()
-        }
-
+        const end = timing.end ?? process.hrtime.bigint()
         value += `;dur=${this.formatDuration(timing.start, end)}`
       }
 
@@ -262,6 +257,29 @@ export class ServerTiming {
    */
   toString(): string {
     return this.headers().get(this.headerKey) ?? ''
+  }
+
+  getRawTimings(): ([string, number | string] | string)[] {
+    return this.timings.map((timing) => {
+      let label = timing.label
+
+      if (timing.desc) {
+        label = `${label} (${timing.desc})`
+      }
+
+      if (!timing.dur && !timing.start) {
+        return label
+      }
+
+      const pair: [string, number | string] = [label, timing.dur ?? 0]
+
+      if (!timing.dur && timing.start) {
+        const end = timing.end ?? process.hrtime.bigint()
+        pair[1] = this.formatDuration(timing.start, end)
+      }
+
+      return pair
+    })
   }
 }
 
