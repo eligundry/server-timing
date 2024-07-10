@@ -4,7 +4,7 @@ import {
   ServerTiming,
   type ServerTimingOptions,
   type ServerTimingLabel,
-} from './ServerTiming'
+} from './index'
 
 const asyncFn = async (): Promise<string> =>
   new Promise((resolve) =>
