@@ -1,13 +1,13 @@
 {
   "name": "@eligundry/server-timing",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Framework agnostic implementation for tracking app latency with Server-Timing headers",
   "repository": {
     "type": "git",
     "url": "https://github.com/eligundry/server-timing"
   },
-  "main": "dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "type": "module",
   "exports": {
     ".": {
