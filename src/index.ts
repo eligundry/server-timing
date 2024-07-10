@@ -293,3 +293,5 @@ export type DetailedServerTimingLabel = {
 }
 
 export type ServerTimingLabel = string | DetailedServerTimingLabel
+
+export default ServerTiming

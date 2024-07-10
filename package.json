@@ -1,6 +1,6 @@
 {
   "name": "@eligundry/server-timing",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Framework agnostic implementation for tracking app latency with Server-Timing headers",
   "repository": {
     "type": "git",
