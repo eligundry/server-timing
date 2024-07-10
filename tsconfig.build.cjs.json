@@ -4,7 +4,8 @@
     "./src/*.test.ts"
   ],
   "compilerOptions": {
-    "outDir": "./dist/esm",
-    "declarationDir": "./dist/esm"
+    "outDir": "./dist/cjs",
+    "declarationDir": "./dist/cjs",
+    "module": "commonjs"
   }
 }
